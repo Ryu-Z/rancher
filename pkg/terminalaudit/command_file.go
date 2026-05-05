@@ -1,4 +1,4 @@
-package jumpserveraudit
+package terminalaudit
 
 import (
 	"bufio"

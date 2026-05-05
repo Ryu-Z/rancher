@@ -24,7 +24,6 @@ import (
 	"github.com/rancher/rancher/pkg/clustermanager"
 	rancherdialer "github.com/rancher/rancher/pkg/dialer"
 	"github.com/rancher/rancher/pkg/httpproxy"
-	"github.com/rancher/rancher/pkg/jumpserveraudit"
 	k8sProxyPkg "github.com/rancher/rancher/pkg/k8sproxy"
 	"github.com/rancher/rancher/pkg/metrics"
 	"github.com/rancher/rancher/pkg/multiclustermanager/capabilities"
@@ -33,6 +32,7 @@ import (
 	"github.com/rancher/rancher/pkg/rbac"
 	"github.com/rancher/rancher/pkg/rkenodeconfigserver"
 	"github.com/rancher/rancher/pkg/telemetry"
+	"github.com/rancher/rancher/pkg/terminalaudit"
 	"github.com/rancher/rancher/pkg/types/config"
 	"github.com/rancher/steve/pkg/auth"
 )
@@ -100,7 +100,7 @@ func router(ctx context.Context, localClusterEnabled bool, scaledContext *config
 	authed.PathPrefix("/k8s/clusters/").Handler(k8sProxy)
 	authed.PathPrefix("/meta/proxy").Handler(httpproxy.NewProxy("/proxy/", whitelist.Proxy.Get, scaledContext))
 	authed.PathPrefix("/v1-telemetry").Handler(telemetry.NewProxy())
-	authed.PathPrefix("/v3/jumpserver-audit").Handler(jumpserveraudit.NewHandlerFromEnv())
+	authed.PathPrefix("/v3/terminal-audit").Handler(terminalaudit.NewHandlerFromEnv())
 	authed.PathPrefix("/v3/identit").Handler(tokenAPI)
 	authed.PathPrefix("/v3/token").Handler(tokenAPI)
 	authed.PathPrefix("/v3").Handler(managementAPI)

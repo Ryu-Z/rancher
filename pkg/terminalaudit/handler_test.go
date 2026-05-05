@@ -1,4 +1,4 @@
-package jumpserveraudit
+package terminalaudit
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestDecodeCommandRecordsAcceptsJumpServerSnakeCase(t *testing.T) {
+func TestDecodeCommandRecordsAcceptsTerminalSnakeCase(t *testing.T) {
 	body := []byte(`[
 		{
 			"user": "admin",
@@ -46,18 +46,18 @@ func TestDecodeCommandRecordsAcceptsJumpServerSnakeCase(t *testing.T) {
 }
 
 func TestConfigDefaultsWhenFeatureEnabled(t *testing.T) {
-	oldEnabled := os.Getenv("CATTLE_JUMPSERVER_AUDIT_ENABLED")
-	oldCommandStorage := os.Getenv("CATTLE_JUMPSERVER_COMMAND_STORAGE")
-	oldReplayStorage := os.Getenv("CATTLE_JUMPSERVER_REPLAY_STORAGE")
+	oldEnabled := os.Getenv("CATTLE_TERMINAL_AUDIT_ENABLED")
+	oldCommandStorage := os.Getenv("CATTLE_TERMINAL_COMMAND_STORAGE")
+	oldReplayStorage := os.Getenv("CATTLE_TERMINAL_REPLAY_STORAGE")
 	defer func() {
-		_ = os.Setenv("CATTLE_JUMPSERVER_AUDIT_ENABLED", oldEnabled)
-		_ = os.Setenv("CATTLE_JUMPSERVER_COMMAND_STORAGE", oldCommandStorage)
-		_ = os.Setenv("CATTLE_JUMPSERVER_REPLAY_STORAGE", oldReplayStorage)
+		_ = os.Setenv("CATTLE_TERMINAL_AUDIT_ENABLED", oldEnabled)
+		_ = os.Setenv("CATTLE_TERMINAL_COMMAND_STORAGE", oldCommandStorage)
+		_ = os.Setenv("CATTLE_TERMINAL_REPLAY_STORAGE", oldReplayStorage)
 	}()
 
-	_ = os.Setenv("CATTLE_JUMPSERVER_AUDIT_ENABLED", "true")
-	_ = os.Unsetenv("CATTLE_JUMPSERVER_COMMAND_STORAGE")
-	_ = os.Unsetenv("CATTLE_JUMPSERVER_REPLAY_STORAGE")
+	_ = os.Setenv("CATTLE_TERMINAL_AUDIT_ENABLED", "true")
+	_ = os.Unsetenv("CATTLE_TERMINAL_COMMAND_STORAGE")
+	_ = os.Unsetenv("CATTLE_TERMINAL_REPLAY_STORAGE")
 
 	cfg := NewConfigFromEnv()
 	if cfg.CommandStorageType != commandStorageFile {
@@ -128,7 +128,7 @@ func TestHandlerCommandEndpoints(t *testing.T) {
 	}
 }
 
-func TestHandlerReplayUploadBuildsJumpServerStyleKey(t *testing.T) {
+func TestHandlerReplayUploadBuildsTerminalStyleKey(t *testing.T) {
 	replay := &fakeReplayStore{}
 	handler := &Handler{
 		cfg: Config{

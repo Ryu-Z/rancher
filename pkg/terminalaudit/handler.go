@@ -1,4 +1,4 @@
-package jumpserveraudit
+package terminalaudit
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const apiBasePath = "/v3/jumpserver-audit"
+const apiBasePath = "/v3/terminal-audit"
 
 type Handler struct {
 	cfg      Config
@@ -25,7 +25,7 @@ func NewHandlerFromEnv() http.Handler {
 	cfg := NewConfigFromEnv()
 	handler, err := NewHandler(cfg)
 	if err != nil {
-		logrus.Warnf("JumpServer audit integration is not fully configured: %v", err)
+		logrus.Warnf("Terminal audit integration is not fully configured: %v", err)
 	}
 	if handler != nil {
 		return handler
@@ -330,7 +330,7 @@ func writeJSON(rw http.ResponseWriter, status int, value interface{}) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
 	if err := json.NewEncoder(rw).Encode(value); err != nil {
-		logrus.Warnf("failed to write jumpserver audit response: %v", err)
+		logrus.Warnf("failed to write terminal audit response: %v", err)
 	}
 }
 

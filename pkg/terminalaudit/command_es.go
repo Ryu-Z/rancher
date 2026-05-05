@@ -1,4 +1,4 @@
-package jumpserveraudit
+package terminalaudit
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ func NewESCommandStore(cfg ESConfig) (CommandStore, error) {
 		return nil, errors.New("elasticsearch url is required")
 	}
 	if cfg.Index == "" {
-		cfg.Index = "jumpserver-command"
+		cfg.Index = "terminal-command"
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
