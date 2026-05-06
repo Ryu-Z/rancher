@@ -7,6 +7,14 @@ on:
         description: Image tag, for example v2.5.8-terminal-audit
         required: false
         default: ""
+      ui_repository:
+        description: GitHub repository containing the custom Rancher UI
+        required: false
+        default: Ryu-Z/ui
+      ui_ref:
+        description: Branch, tag, or SHA for the custom Rancher UI
+        required: false
+        default: feature/terminal-audit-v2.5.8
       run_tests:
         description: Run Rancher test suite before packaging
         required: false
@@ -87,6 +95,33 @@ jobs:
           echo "Image tag: ${image_tag}"
           echo "Image repo: ${image_repo}"
 
+      - name: Checkout custom Rancher UI
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.ui_repository }}
+          ref: ${{ inputs.ui_ref }}
+          path: _custom-ui
+          fetch-depth: 1
+          token: ${{ secrets.UI_REPO_TOKEN || github.token }}
+
+      - name: Build custom Rancher UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/amd64 \
+            -v "${GITHUB_WORKSPACE}/_custom-ui:/workspace" \
+            -w /workspace \
+            node:14-bullseye \
+            bash -lc 'set -euo pipefail
+              yarn install --frozen-lockfile
+              yarn build'
+
+          test -f _custom-ui/dist/index.html
+          tar -czf custom-ui.tar.gz -C _custom-ui/dist .
+          rm -rf _custom-ui
+          echo "CATTLE_UI_TARBALL=custom-ui.tar.gz" >> "${GITHUB_ENV}"
+          echo "Custom UI tarball size: $(du -h custom-ui.tar.gz | awk '{print $1}')"
+
       - name: Install Dapper
         shell: bash
         run: |
@@ -159,3 +194,4 @@ jobs:
             bin/rancherd-amd64.tar.gz
             bin/rancher.yaml
             bin/rancher-namespace.yaml
+            custom-ui.tar.gz
