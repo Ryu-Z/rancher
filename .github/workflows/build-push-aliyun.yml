@@ -135,14 +135,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper /bin/bash -lc './scripts/build && ./scripts/package'
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper /bin/bash -lc './scripts/build && ./scripts/package'
 
       - name: Run Rancher CI before packaging
         if: ${{ inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper ci
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper ci
+
+      - name: Tag packaged images for Aliyun
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker tag "rancher/rancher:${IMAGE_TAG}" "${RANCHER_IMAGE}"
+          docker tag "rancher/rancher-agent:${IMAGE_TAG}" "${RANCHER_AGENT_IMAGE}"
+          docker tag "rancher/rancher-runtime:${IMAGE_TAG}" "${RANCHER_RUNTIME_IMAGE}"
 
       - name: List packaged images
         shell: bash
