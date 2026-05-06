@@ -119,7 +119,7 @@ jobs:
 
           test -f _custom-ui/dist/index.html
           tar -czf custom-ui.tar.gz -C _custom-ui/dist .
-          rm -rf _custom-ui
+          sudo rm -rf _custom-ui
           echo "CATTLE_UI_TARBALL=custom-ui.tar.gz" >> "${GITHUB_ENV}"
           echo "Custom UI tarball size: $(du -h custom-ui.tar.gz | awk '{print $1}')"
 
