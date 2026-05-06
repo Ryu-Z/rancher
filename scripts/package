@@ -1,29 +1,55 @@
 #!/bin/bash
 set -e
 
-./k3s-images.sh
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+REPO_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 
-source $(dirname $0)/version
+"${SCRIPT_DIR}/k3s-images.sh"
+
+source "${SCRIPT_DIR}/version"
 
 ARCH=${ARCH:-"amd64"}
 SYSTEM_CHART_REPO_DIR=build/system-charts
 SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH:-"release-v2.5"}
 CHART_REPO_DIR=build/charts
 CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH:-"release-v2.5"}
+CUSTOM_UI_SOURCE=${CATTLE_UI_TARBALL:-}
+CUSTOM_UI_BUILD_ARG=false
 
-cd $(dirname $0)/../package
+if [ -n "${CUSTOM_UI_SOURCE}" ] && [[ "${CUSTOM_UI_SOURCE}" != /* ]]; then
+    CUSTOM_UI_SOURCE="${REPO_DIR}/${CUSTOM_UI_SOURCE}"
+fi
+
+cd "${REPO_DIR}/package"
 
 cp ../bin/rancher.yaml ../bin/rancher-namespace.yaml ../bin/rancher ../bin/agent ../bin/data.json ../bin/k3s-airgap-images.tar .
 
 IMAGE=${REPO}/rancher:${TAG}
 AGENT_IMAGE=${REPO}/rancher-agent:${AGENT_TAG}
 RUNTIME_IMAGE=${REPO}/rancher-runtime:${TAG}
+PACKAGE_DIR=$(pwd)
+
+rm -f custom-ui.tar.gz
+if [ -n "${CUSTOM_UI_SOURCE}" ]; then
+    if [ ! -f "${CUSTOM_UI_SOURCE}" ]; then
+        echo "Custom UI tarball not found: ${CUSTOM_UI_SOURCE}"
+        exit 1
+    fi
+
+    cp "${CUSTOM_UI_SOURCE}" custom-ui.tar.gz
+    CUSTOM_UI_BUILD_ARG=true
+else
+    EMPTY_UI_DIR=$(mktemp -d)
+    tar czf custom-ui.tar.gz -C "${EMPTY_UI_DIR}" .
+    rm -rf "${EMPTY_UI_DIR}"
+fi
+trap 'rm -f "${PACKAGE_DIR}/custom-ui.tar.gz"' EXIT
 
 if [ ${ARCH} == arm64 ]; then
     sed -i -e '$a\' -e 'ENV ETCD_UNSUPPORTED_ARCH=arm64' Dockerfile
 fi
 
-docker build --build-arg VERSION=${TAG} --build-arg ARCH=${ARCH} --build-arg IMAGE_REPO=${REPO} --build-arg SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH} --build-arg CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH} -t ${IMAGE} .
+docker build --build-arg VERSION=${TAG} --build-arg ARCH=${ARCH} --build-arg IMAGE_REPO=${REPO} --build-arg SYSTEM_CHART_DEFAULT_BRANCH=${SYSTEM_CHART_DEFAULT_BRANCH} --build-arg CHART_DEFAULT_BRANCH=${CHART_DEFAULT_BRANCH} --build-arg CATTLE_UI_CUSTOM=${CUSTOM_UI_BUILD_ARG} -t ${IMAGE} .
 
 docker build --build-arg VERSION=${TAG} --build-arg ARCH=${ARCH} --build-arg RANCHER_TAG=${TAG} --build-arg RANCHER_REPO=${REPO} -t ${AGENT_IMAGE} -f Dockerfile.agent .
 if [ "${ARCH}" == amd64 ]; then

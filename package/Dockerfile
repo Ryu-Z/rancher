@@ -126,9 +126,16 @@ ENV AUDIT_LOG_MAXBACKUP 10
 ENV AUDIT_LOG_MAXSIZE 100
 ENV AUDIT_LEVEL 0
 
+ARG CATTLE_UI_CUSTOM=false
+ADD custom-ui.tar.gz /usr/share/rancher/ui/
+
 RUN mkdir -p /usr/share/rancher/ui && \
     cd /usr/share/rancher/ui && \
-    curl -sL https://releases.rancher.com/ui/${CATTLE_UI_VERSION}.tar.gz | tar xvzf - --strip-components=1 && \
+    if [ "${CATTLE_UI_CUSTOM}" = "true" ]; then \
+        test -f index.html; \
+    else \
+        curl -sL https://releases.rancher.com/ui/${CATTLE_UI_VERSION}.tar.gz | tar xvzf - --strip-components=1; \
+    fi && \
     mkdir -p assets/rancher-ui-driver-linode && \
     cd assets/rancher-ui-driver-linode && \
     curl -O https://linode.github.io/rancher-ui-driver-linode/releases/${LINODE_UI_DRIVER_VERSION}/component.js && \
