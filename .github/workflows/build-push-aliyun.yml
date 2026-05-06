@@ -130,12 +130,12 @@ jobs:
           make .dapper
           ./.dapper -v
 
-      - name: Build Rancher binaries
+      - name: Build and package Rancher images
         if: ${{ !inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper build
+          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper /bin/bash -lc './scripts/build && ./scripts/package'
 
       - name: Run Rancher CI before packaging
         if: ${{ inputs.run_tests }}
@@ -143,13 +143,6 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper ci
-
-      - name: Package Rancher images
-        if: ${{ !inputs.run_tests }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper package
 
       - name: List packaged images
         shell: bash
