@@ -1,0 +1,161 @@
+name: Build and Push Rancher Images to Aliyun
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag, for example v2.5.8-terminal-audit
+        required: false
+        default: ""
+      run_tests:
+        description: Run Rancher test suite before packaging
+        required: false
+        type: boolean
+        default: false
+      push_images:
+        description: Push images to Aliyun Container Registry
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rancher-aliyun-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-push:
+    name: Build linux/amd64 images
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    env:
+      ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+      ALIYUN_NAMESPACE: ${{ secrets.ALIYUN_NAMESPACE }}
+      ALIYUN_REGISTRY_USERNAME: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+      ALIYUN_REGISTRY_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+      ARCH: amd64
+      SYSTEM_CHART_DEFAULT_BRANCH: release-v2.5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate registry secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in ALIYUN_REGISTRY ALIYUN_NAMESPACE ALIYUN_REGISTRY_USERNAME ALIYUN_REGISTRY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub Actions secret: ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Prepare image metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw_tag="${{ github.event.inputs.image_tag }}"
+          if [ -z "${raw_tag}" ]; then
+            raw_tag="v2.5.8-terminal-audit-${GITHUB_SHA::7}"
+          fi
+
+          image_tag="$(echo "${raw_tag}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9_.-]+/-/g' \
+            | sed -E 's/^-+|-+$//g' \
+            | cut -c1-120)"
+          if [ -z "${image_tag}" ]; then
+            echo "::error::Resolved image tag is empty"
+            exit 1
+          fi
+
+          image_repo="${ALIYUN_REGISTRY}/${ALIYUN_NAMESPACE}"
+          {
+            echo "IMAGE_TAG=${image_tag}"
+            echo "IMAGE_REPO=${image_repo}"
+            echo "RANCHER_IMAGE=${image_repo}/rancher:${image_tag}"
+            echo "RANCHER_AGENT_IMAGE=${image_repo}/rancher-agent:${image_tag}"
+            echo "RANCHER_RUNTIME_IMAGE=${image_repo}/rancher-runtime:${image_tag}"
+          } >> "${GITHUB_ENV}"
+
+          echo "Image tag: ${image_tag}"
+          echo "Image repo: ${image_repo}"
+
+      - name: Install Dapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          make .dapper
+          ./.dapper -v
+
+      - name: Build Rancher binaries
+        if: ${{ !inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper build
+
+      - name: Run Rancher CI before packaging
+        if: ${{ inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper ci
+
+      - name: Package Rancher images
+        if: ${{ !inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="${IMAGE_REPO}" ./.dapper package
+
+      - name: List packaged images
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat dist/images
+          docker image inspect \
+            "${RANCHER_IMAGE}" \
+            "${RANCHER_AGENT_IMAGE}" \
+            "${RANCHER_RUNTIME_IMAGE}" >/dev/null
+
+      - name: Login to Aliyun Container Registry
+        if: ${{ inputs.push_images }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${ALIYUN_REGISTRY_PASSWORD}" | docker login "${ALIYUN_REGISTRY}" \
+            --username "${ALIYUN_REGISTRY_USERNAME}" \
+            --password-stdin
+
+      - name: Push images to Aliyun
+        if: ${{ inputs.push_images }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "${RANCHER_IMAGE}"
+          docker push "${RANCHER_AGENT_IMAGE}"
+          docker push "${RANCHER_RUNTIME_IMAGE}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rancher-build-${{ env.IMAGE_TAG }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            dist/images
+            bin/rancher
+            bin/agent
+            bin/rancherd
+            bin/rancherd-amd64
+            bin/rancherd-amd64.tar.gz
+            bin/rancher.yaml
+            bin/rancher-namespace.yaml
