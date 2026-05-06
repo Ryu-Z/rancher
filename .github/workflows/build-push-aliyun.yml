@@ -102,6 +102,7 @@ jobs:
           ref: ${{ inputs.ui_ref }}
           path: _custom-ui
           fetch-depth: 1
+          submodules: recursive
           token: ${{ secrets.UI_REPO_TOKEN || github.token }}
 
       - name: Build custom Rancher UI
