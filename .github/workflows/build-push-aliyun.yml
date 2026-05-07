@@ -137,12 +137,41 @@ jobs:
           set -euo pipefail
           TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper /bin/bash -lc './scripts/build && ./scripts/package'
 
-      - name: Run Rancher CI before packaging
+      - name: Validate Rancher code
         if: ${{ inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper ci
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper validate
+
+      - name: Build Rancher binaries for tests
+        if: ${{ inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper build
+
+      - name: Run Rancher tests
+        if: ${{ inputs.run_tests }}
+        shell: bash
+        timeout-minutes: 120
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="rancher" RANCHER_TEST_STARTUP_TIMEOUT=600 ./.dapper test
+
+      - name: Package Rancher images after tests
+        if: ${{ inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper package
+
+      - name: Run Rancher chart CI
+        if: ${{ inputs.run_tests }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper chart/ci
 
       - name: Tag packaged images for Aliyun
         shell: bash
@@ -196,4 +225,5 @@ jobs:
             bin/rancherd-amd64.tar.gz
             bin/rancher.yaml
             bin/rancher-namespace.yaml
+            build/rancher-server-test.log
             custom-ui.tar.gz
