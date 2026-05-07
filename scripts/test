@@ -1,22 +1,31 @@
 #!/bin/bash
 set -e
 
-CWD=$(pwd -P)
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
+REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd -P)
+SERVER_LOG="${RANCHER_TEST_SERVER_LOG:-$REPO_DIR/build/rancher-server-test.log}"
+STARTUP_TIMEOUT="${RANCHER_TEST_STARTUP_TIMEOUT:-600}"
+PID=""
+
 cleanup()
 {
     EXIT=$?
     set +e
-    echo Stopping rancher server
-    kill $PID
-    wait $PID
+    if [ -n "$PID" ]; then
+        echo Stopping rancher server
+        kill "$PID" 2>/dev/null
+        wait "$PID" 2>/dev/null
+    fi
     echo Cleanup DIND
-    TESTS="$CWD/$(dirname $0)/../tests"
-    for dindYML in $(find $TESTS -iname 'dind-*.yml'); do
-        rke remove --dind --force --config $dindYML
-        rm -f $dindYML
+    TESTS="$REPO_DIR/tests"
+    for dindYML in $(find "$TESTS" -iname 'dind-*.yml'); do
+        rke remove --dind --force --config "$dindYML"
+        rm -f "$dindYML"
     done
     return $EXIT
 }
+
+cd "$SCRIPT_DIR"
 
 #[ "${ARCH}" == "amd64" ] && RACE=-race
 go test -cover -tags=test .././...
@@ -26,16 +35,29 @@ if [ ${ARCH} == arm64 ]; then
 fi
 
 echo Starting rancher server
-$(dirname $0)/run &> /dev/null &
+mkdir -p "$(dirname "$SERVER_LOG")"
+echo "Rancher server log: $SERVER_LOG"
+"$SCRIPT_DIR"/run >"$SERVER_LOG" 2>&1 &
 PID=$!
 trap cleanup exit
 
+STARTUP_STARTED_AT=$SECONDS
 while ! curl -sf http://localhost:8080/ping; do
+    if ! kill -0 "$PID" 2>/dev/null; then
+        echo "Rancher server exited before /ping became ready"
+        tail -n 200 "$SERVER_LOG" || true
+        exit 1
+    fi
+    if [ $((SECONDS - STARTUP_STARTED_AT)) -ge "$STARTUP_TIMEOUT" ]; then
+        echo "Timed out waiting ${STARTUP_TIMEOUT}s for rancher server /ping"
+        tail -n 200 "$SERVER_LOG" || true
+        exit 1
+    fi
     sleep 2
 done
 
 echo Running tests
 
-cd $(dirname $0)/../tests/integration
+cd "$REPO_DIR/tests/integration"
 tox -e rancher -- -m "not nonparallel" -n $(nproc)
 tox -e rancher -- -m nonparallel
