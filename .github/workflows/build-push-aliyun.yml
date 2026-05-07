@@ -149,7 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper build
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind build
 
       - name: Run Rancher tests
         if: ${{ inputs.run_tests }}
@@ -157,21 +157,21 @@ jobs:
         timeout-minutes: 120
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" RANCHER_TEST_STARTUP_TIMEOUT=600 ./.dapper test
+          TAG="${IMAGE_TAG}" REPO="rancher" RANCHER_TEST_STARTUP_TIMEOUT=600 ./.dapper -m bind test
 
       - name: Package Rancher images after tests
         if: ${{ inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper package
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind package
 
       - name: Run Rancher chart CI
         if: ${{ inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper chart/ci
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind chart/ci
 
       - name: Tag packaged images for Aliyun
         shell: bash
