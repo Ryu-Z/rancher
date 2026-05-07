@@ -149,7 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind build
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind /bin/bash -lc 'git config --global --add safe.directory "$PWD" && ./scripts/build'
 
       - name: Run Rancher tests
         if: ${{ inputs.run_tests }}
@@ -157,21 +157,21 @@ jobs:
         timeout-minutes: 120
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" RANCHER_TEST_STARTUP_TIMEOUT=600 ./.dapper -m bind test
+          TAG="${IMAGE_TAG}" REPO="rancher" RANCHER_TEST_STARTUP_TIMEOUT=600 ./.dapper -m bind /bin/bash -lc 'git config --global --add safe.directory "$PWD" && ./scripts/test'
 
       - name: Package Rancher images after tests
         if: ${{ inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind package
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind /bin/bash -lc 'git config --global --add safe.directory "$PWD" && ./scripts/package'
 
       - name: Run Rancher chart CI
         if: ${{ inputs.run_tests }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind chart/ci
+          TAG="${IMAGE_TAG}" REPO="rancher" ./.dapper -m bind /bin/bash -lc 'git config --global --add safe.directory "$PWD" && ./scripts/chart/ci'
 
       - name: Tag packaged images for Aliyun
         shell: bash
