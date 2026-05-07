@@ -14,7 +14,7 @@ on:
       ui_ref:
         description: Branch, tag, or SHA for the custom Rancher UI
         required: false
-        default: feature/terminal-audit-v2.5.8
+        default: codex/vue3-ui-baseline-v2.5.8
       run_tests:
         description: Run Rancher test suite before packaging
         required: false
@@ -54,6 +54,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate registry secrets
+        if: ${{ inputs.push_images }}
         shell: bash
         run: |
           set -euo pipefail
@@ -112,7 +113,7 @@ jobs:
           docker run --rm --platform linux/amd64 \
             -v "${GITHUB_WORKSPACE}/_custom-ui:/workspace" \
             -w /workspace \
-            node:14-bullseye \
+            node:20-bullseye \
             bash -lc 'set -euo pipefail
               yarn install --frozen-lockfile
               yarn build'
