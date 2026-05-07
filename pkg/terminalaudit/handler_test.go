@@ -69,7 +69,7 @@ func TestConfigDefaultsWhenFeatureEnabled(t *testing.T) {
 }
 
 func TestFileCommandStoreSaveAndQuery(t *testing.T) {
-	store := NewFileCommandStore(filepath.Join(t.TempDir(), "commands.jsonl"))
+	store := NewFileCommandStore(filepath.Join(tempDir(t), "commands.jsonl"))
 	err := store.Save([]CommandRecord{
 		{Session: "s-1", User: "alice", Asset: "node-1", Account: "root", Input: "whoami", Timestamp: 1710000000},
 		{Session: "s-2", User: "bob", Asset: "node-2", Account: "root", Input: "id", Timestamp: 1710000100},
@@ -93,7 +93,7 @@ func TestFileCommandStoreSaveAndQuery(t *testing.T) {
 func TestHandlerCommandEndpoints(t *testing.T) {
 	cfg := Config{
 		CommandStorageType: commandStorageFile,
-		CommandFilePath:    filepath.Join(t.TempDir(), "commands.jsonl"),
+		CommandFilePath:    filepath.Join(tempDir(t), "commands.jsonl"),
 		ReplayStorageType:  replayStorageDisabled,
 		ReplayPresignTTL:   time.Hour,
 		MaxUploadBytes:     1024,
@@ -152,6 +152,17 @@ func TestHandlerReplayUploadBuildsTerminalStyleKey(t *testing.T) {
 	if replay.body != "cast-data" {
 		t.Fatalf("unexpected replay body: %s", replay.body)
 	}
+}
+
+func tempDir(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "terminalaudit-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(dir)
+	})
+	return dir
 }
 
 type fakeReplayStore struct {
